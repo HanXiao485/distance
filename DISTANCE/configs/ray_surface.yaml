@@ -1,0 +1,79 @@
+# ============================================================
+# Ray-Surface method — 本地 mini 数据集配置示例
+# Usage:
+#   cd .
+#   python ray_surface/run_ray.py --config configs/ray_surface.yaml
+# 数据集统一位于仓库同级的 data 目录下，
+# 本仓库不包含 wildscenes_mini 数据本身。
+# ============================================================
+
+project_root: "."
+output_dir:   "./outputs/ray_surface_local"
+
+dataset:
+  dir_2d: "../data/wildscenes_mini/WildScenes2d"
+  dir_3d: "../data/wildscenes_mini/WildScenes3d"
+  min_class_pixels: 800000
+  pred_mask_dir: "../data/wildscenes_mini/WildScenes2d/deeplabv3_pred_mask"
+
+class:
+  name: "dirt"
+  id_2d: 2
+
+# ------------------------------------------------------------
+# 表面重建参数
+# cell_size_m: BEV 格子大小（越小越精细，越慢）
+# lidar_z_min/max: LiDAR 坐标系下保留的 Z 范围（地面附近）
+# ------------------------------------------------------------
+surface:
+  cell_size_m: 0.25
+  lidar_z_min: -1.5   # LiDAR 坐标系下地面约 -0.5m，留余量
+  lidar_z_max: 1.0    # 过滤高处物体（树木、车顶等）
+
+# ------------------------------------------------------------
+# 射线参数
+# t_min/max: 沿射线的搜索范围（米）
+# n_coarse: 粗采样点数
+# n_bisect: 二分精化次数
+# max_distance_m: 超过此距离的交点忽略（类似 H 矩阵的 20m 过滤）
+# ------------------------------------------------------------
+ray:
+  t_min: 0.5
+  t_max: 60.0
+  n_coarse: 300
+  n_bisect: 25
+  max_distance_m: 30.0
+
+# ------------------------------------------------------------
+# 预测 mask 解析方式（与 H 矩阵方法一致）
+# ------------------------------------------------------------
+masks:
+  pred:
+    type: "color_threshold"
+    threshold:
+      r_min: 0
+      r_max: 144
+      g_min: 110
+      g_max: 255
+      b_min: 0
+      b_max: 144
+      g_minus_r_min: 35
+      g_minus_b_min: 35
+
+# ------------------------------------------------------------
+# Mask 后处理
+# ------------------------------------------------------------
+mask_processing:
+  min_component_area_px: 5000
+  close_iterations: 2
+
+# ------------------------------------------------------------
+# 扫描线参数（与 H 矩阵方法保持一致）
+# ------------------------------------------------------------
+scanline:
+  step_px: 10
+  u_min: 0
+  u_max: 9999
+  max_boundary_run_width_px: 25
+
+min_scanlines_per_frame: 5
