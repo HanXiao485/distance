@@ -1,0 +1,137 @@
+# ============================================================
+# DISTANCE — 自定义帧列表模式配置文件
+# 适用于非 WildScenes 数据，手动指定每一帧的文件路径
+# ============================================================
+
+# 项目根目录（绝对路径），所有相对路径均基于此目录解析
+project_root: "/root/distance/WildScenes/DISTANCE"
+
+# 结果输出目录（相对于 project_root 或绝对路径）
+output_dir: "outputs/sequence_dirt"
+
+# ------------------------------------------------------------
+# 目标类别（★ 切换类别时修改）
+# ------------------------------------------------------------
+class:
+  # 类别名称，用于输出文件命名
+  name: "dirt"
+  # 该类别在 indexLabel 图中的像素索引值
+  id_2d: 2
+  # 该类别在 3D label 文件中的 cidx 编号，用于过滤点云
+  id_3d_for_h: 1
+
+# 3D label 文件的数据类型（通常无需修改）
+label3d_dtype: "uint32"
+
+# ------------------------------------------------------------
+# 几何与位姿设置
+# ------------------------------------------------------------
+geometry:
+  # 2D 位姿方向：sensor_to_world 或 world_to_sensor
+  pose2d_direction: "sensor_to_world"
+  # 3D 位姿方向：sensor_to_world 或 world_to_sensor
+  pose3d_direction: "sensor_to_world"
+  # 点云与图像时间戳最大允许差值（秒）
+  max_timestamp_diff_sec: 0.05
+  # 是否使用畸变校正
+  use_distortion: false
+
+# ------------------------------------------------------------
+# 共享文件路径（相对于 project_root）
+# ------------------------------------------------------------
+shared_paths:
+  # 2D 位姿文件路径
+  poses2d: "calibration/poses2d.csv"
+  # 3D 位姿文件路径
+  poses3d: "calibration/poses3d.csv"
+  # 相机标定文件路径
+  calibration: "calibration/camera_calibration.yaml"
+
+# ------------------------------------------------------------
+# 掩码提取设置
+# ------------------------------------------------------------
+masks:
+  gt:
+    # GT mask 提取方式：index = 按像素索引值提取
+    type: "index"
+  pred:
+    # 预测 mask 提取方式：color_threshold = 按 RGB 颜色范围提取
+    type: "color_threshold"
+    threshold:
+      r_min: 0
+      r_max: 144
+      g_min: 110
+      g_max: 255
+      b_min: 0
+      b_max: 144
+      g_minus_r_min: 35
+      g_minus_b_min: 35
+
+# ------------------------------------------------------------
+# 掩码后处理
+# ------------------------------------------------------------
+mask_processing:
+  # 小于此面积（像素）的连通域会被过滤掉
+  min_component_area_px: 5000
+  # 形态学闭运算迭代次数
+  close_iterations: 2
+
+# ------------------------------------------------------------
+# H 矩阵估计设置
+# ------------------------------------------------------------
+h_estimation:
+  plane_inlier_threshold_m: 0.5
+  robust_method: "none"
+  z_filter:
+    enabled: true
+    lidar_z_min: -0.75
+    lidar_z_max: 0.5
+    u_min: 300
+    u_max: 1700
+
+# ------------------------------------------------------------
+# H 矩阵诊断设置
+# ------------------------------------------------------------
+h_diagnostics:
+  enabled: true
+  image_edge_margin_px: 100
+  near_distance_m: 5.0
+  far_distance_m: 20.0
+
+# ------------------------------------------------------------
+# 扫描线采样与误差计算设置
+# ------------------------------------------------------------
+scanline:
+  step_px: 10
+  edge_margin_px: 0
+  u_min: 300
+  u_max: 1700
+  max_boundary_run_width_px: 25
+  top_margin_ratio: 0.10
+  bottom_margin_ratio: 0.10
+  line_width: 4
+  point_radius: 7
+
+# ------------------------------------------------------------
+# 显式帧列表（★ 按需添加或删除帧）
+# 所有路径相对于 project_root
+# ------------------------------------------------------------
+frames:
+  - frame_id: "1623378686.882864149"
+    # RGB 图像路径
+    rgb: "raw/frames/scene_1623378686_882864149/1623378686.882864149_rgb.png"
+    # 点云文件路径（.bin 格式，每点 3 个 float32：X Y Z）
+    pointcloud: "raw/frames/scene_1623378686_882864149/1623378686.882864149.bin"
+    # 3D 标注文件路径
+    label3d: "labels/frames/scene_1623378686_882864149/3d_point_labels/1623378686.882864149_3d.label"
+    # GT 索引标注图路径（每像素值为类别 ID）
+    gt_index: "labels/frames/scene_1623378686_882864149/2d_ground_truth/1623378686.882864149_gt_indexlabels.png"
+    # 预测 mask 图路径（纯色 RGB mask）
+    pred_mask: "labels/frames/scene_1623378686_882864149/2d_prediction/1623378686.882864149_pred_color.png"
+
+  - frame_id: "1623379838.017682788"
+    rgb: "raw/current_frame/1623379838.017682788_rgb.png"
+    pointcloud: "raw/current_frame/1623379838.017682788.bin"
+    label3d: "labels/3d_point_labels/1623379838.017682788_3d.label"
+    gt_index: "labels/2d_ground_truth/1623379838.017682788_gt_indexlabels.png"
+    pred_mask: "labels/2d_prediction/1623379838.017682788_pred_color.png"
