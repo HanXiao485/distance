@@ -1,0 +1,27 @@
+# Datasets and model artifacts live outside source control.
+/data/
+/pretrained_models
+/pretrained_models/
+/work_dirs/
+/trt_engines/
+
+# Generated outputs and caches.
+**/outputs/
+**/__pycache__/
+*.py[cod]
+*.so
+.pytest_cache/
+.mypy_cache/
+
+# Large model/runtime files.
+*.pth
+*.pt
+*.ckpt
+*.onnx
+*.engine
+*.trt
+
+# Local editor and OS metadata.
+.vscode/
+.idea/
+.DS_Store

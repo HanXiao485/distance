@@ -62,7 +62,7 @@
 #   min_scanlines_per_frame: 一帧至少包含多少条有效扫描线才计入序列汇总。
 
 project_root: .
-datasets_root: ../data
+datasets_root: ./data
 outputs_root: ./outputs
 
 defaults:
@@ -93,13 +93,13 @@ models:
     enabled: false
   wildscenes_deeplabv3:
     enabled: true
-    config: ../wildscenes/configs/deeplabv3/deeplabv3_r50-d8_2xb20-80k_wildscenes-512x512_standard.py
-    checkpoint: ../pretrained_models/deeplabv3_wildscenes.pth
+    config: ./wildscenes/configs/deeplabv3/deeplabv3_r50-d8_2xb20-80k_wildscenes-512x512_standard.py
+    checkpoint: ./pretrained_models/deeplabv3_wildscenes.pth
     device: cuda:0
   goose64_deeplabv3_terrain:
     enabled: true
-    config: ../wildscenes/configs/deeplabv3/deeplabv3_r50-d8_2xb20-80k_goose-512x512.py
-    checkpoint: ../pretrained_models/ddrnet_goose64_best_mIoU_iter_72000.pth
+    config: ./wildscenes/configs/deeplabv3/deeplabv3_r50-d8_2xb20-80k_goose-512x512.py
+    checkpoint: ./pretrained_models/ddrnet_goose64_best_mIoU_iter_72000.pth
     device: cuda:0
     # Match the old GOOSE Category "Terrain" class:
     # snow, cobble, asphalt, gravel, soil.
