@@ -42,9 +42,17 @@ def filtered_boundary_runs(boundary: np.ndarray, y: int, edge_margin_px: int, ma
 
 def outer_boundary_points(boundary: np.ndarray, y: int, edge_margin_px: int,
                           u_min: int = 0, u_max: int | None = None) -> tuple[float, float] | None:
+    """Return the original outermost points inside the configured horizontal ROI.
+
+    ``edge_margin_px`` is intentionally not used to clip points here. Clipping
+    before taking min/max can silently replace a rejected image-edge point with
+    an unrelated interior boundary point. Edge eligibility is decided later,
+    per GT/pred point pair, so rejected points remain available for gray
+    visualization without contributing to the error.
+    """
     width = boundary.shape[1]
-    valid_left  = max(edge_margin_px, u_min)
-    valid_right = min(width - 1 - edge_margin_px, u_max if u_max is not None else width - 1)
+    valid_left = max(0, u_min)
+    valid_right = min(width - 1, u_max if u_max is not None else width - 1)
     xs = np.flatnonzero(boundary[y])
     xs = xs[(xs >= valid_left) & (xs <= valid_right)]
     if xs.size < 2:
@@ -185,11 +193,25 @@ def draw_samples_on_image(
     output_path: Path,
     line_width: int,
     point_radius: int,
+    excluded_samples: list[dict[str, float]] | None = None,
+    excluded_pairs: list[dict[str, float]] | None = None,
 ) -> None:
     image = base_image.convert("RGBA")
     overlay = Image.new("RGBA", image.size, (0, 0, 0, 0))
     draw = ImageDraw.Draw(overlay)
     width, _ = image.size
+    for row in (excluded_samples or []):
+        y = int(row["y"])
+        gray = (145, 145, 145, 190)
+        draw.line((0, y, width - 1, y), fill=gray, width=line_width)
+        draw.line((row["gt_left_x"], y, row["gt_right_x"], y), fill=gray, width=line_width + 1)
+        draw.line((row["pred_left_x"], y, row["pred_right_x"], y), fill=gray, width=line_width + 1)
+        for key in ("gt_left_x", "gt_right_x", "pred_left_x", "pred_right_x"):
+            x = float(row[key])
+            draw.ellipse(
+                (x - point_radius, y - point_radius, x + point_radius, y + point_radius),
+                fill=(145, 145, 145, 230), outline=(225, 225, 225, 230), width=2,
+            )
     for row in samples:
         y = int(row["y"])
         draw.line((0, y, width - 1, y), fill=(255, 230, 80, 215), width=line_width)
@@ -204,6 +226,16 @@ def draw_samples_on_image(
             x = float(row[key])
             draw.ellipse((x - point_radius, y - point_radius, x + point_radius, y + point_radius), fill=color)
             draw.ellipse((x - point_radius, y - point_radius, x + point_radius, y + point_radius), outline=(255, 255, 255, 230), width=2)
+    for pair in (excluded_pairs or []):
+        y = int(pair["y"])
+        gt_x = float(pair["gt_x"])
+        pred_x = float(pair["pred_x"])
+        draw.line((gt_x, y, pred_x, y), fill=(145, 145, 145, 230), width=line_width + 1)
+        for x in (gt_x, pred_x):
+            draw.ellipse(
+                (x - point_radius, y - point_radius, x + point_radius, y + point_radius),
+                fill=(145, 145, 145, 230), outline=(225, 225, 225, 230), width=2,
+            )
     ensure_dir(output_path.parent)
     Image.alpha_composite(image, overlay).save(output_path)
 
@@ -242,7 +274,7 @@ def scanline_error(
     max_match_dist_px = scan_cfg.get("max_match_dist_px", None)
     if max_match_dist_px is not None:
         max_match_dist_px = float(max_match_dist_px)
-    # GT 边缘过滤：GT 边界点距图像左/右边缘 <= 此值时，跳过该侧（0=不启用）
+    # GT 边缘过滤：图像最外侧像素始终跳过；正值会进一步扩大 GT 边缘排除范围
     gt_edge_margin_px = int(scan_cfg.get("gt_edge_margin_px", 0))
     image_width = gt_boundary.shape[1]
 
@@ -251,6 +283,8 @@ def scanline_error(
         u_min, u_max,
     )
     samples = []
+    excluded_visual_samples = []
+    excluded_visual_pairs = []
     left_errors: list[float] = []
     right_errors: list[float] = []
     all_matched_errors: list[float] = []
@@ -282,11 +316,30 @@ def scanline_error(
                 ]
                 if max(dists) > max_ground_distance_m:
                     skipped["beyond_max_ground_distance"] += 1
+                    excluded_visual_samples.append({
+                        "y": int(y),
+                        "gt_left_x": float(gt_left), "gt_right_x": float(gt_right),
+                        "pred_left_x": float(pred_left), "pred_right_x": float(pred_right),
+                    })
                     continue
 
             # GT 边缘过滤：GT 点贴着图像边界 → 跳过该侧
-            do_left  = (gt_edge_margin_px <= 0) or (gt_left  > gt_edge_margin_px)
-            do_right = (gt_edge_margin_px <= 0) or (gt_right < image_width - gt_edge_margin_px)
+            edge_right_x = image_width - 1 - edge_margin_px
+            gt_right_x = image_width - gt_edge_margin_px if gt_edge_margin_px > 0 else image_width - 1
+            do_left = (
+                gt_left >= edge_margin_px
+                and pred_left >= edge_margin_px
+                and gt_left > gt_edge_margin_px
+            )
+            do_right = (
+                gt_right <= edge_right_x
+                and pred_right <= edge_right_x
+                and gt_right < gt_right_x
+            )
+            if not do_left:
+                excluded_visual_pairs.append({"y": int(y), "gt_x": gt_left, "pred_x": pred_left})
+            if not do_right:
+                excluded_visual_pairs.append({"y": int(y), "gt_x": gt_right, "pred_x": pred_right})
             if not do_left and not do_right:
                 skipped["missing_gt_outer_points"] += 1
                 continue
@@ -384,11 +437,15 @@ def scanline_error(
             rgb_canvas, samples, rgb_overlay_path,
             int(scan_cfg.get("line_width", 4)),
             int(scan_cfg.get("point_radius", 7)),
+            excluded_visual_samples,
+            excluded_visual_pairs,
         )
         draw_samples_on_image(
             make_boundary_canvas(gt_boundary, pred_boundary), samples, boundary_overlay_path,
             int(scan_cfg.get("line_width", 4)),
             int(scan_cfg.get("point_radius", 7)),
+            excluded_visual_samples,
+            excluded_visual_pairs,
         )
     return {
         "method": "uniform_scanline_multirun_matching" if multi_run else "uniform_scanline_outermost_boundary_error",

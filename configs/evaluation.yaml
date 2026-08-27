@@ -169,7 +169,10 @@ tasks:
     geometry:
       max_timestamp_diff_sec: 0.3
     scanline:
+      edge_margin_px: 2
+      gt_edge_margin_px: 2
       max_ground_distance_m: 20.0
+
 
   scene204_road_scratch:
     dataset: scene204

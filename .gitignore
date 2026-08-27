@@ -24,7 +24,7 @@ calibration/
 周报资料/
 
 # Model weights / checkpoints
-pretrained_models/
+pretrained_models
 work_dirs/
 vis_output/
 trt_engines/
