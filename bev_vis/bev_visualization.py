@@ -528,6 +528,60 @@ def make_bev_grid_from_pngs(frame_ids: list[str],
 
 
 # ──────────────────────────────────────────────────────────────────────────────
+# Video output: ordered BEV PNG frames → MP4
+# ──────────────────────────────────────────────────────────────────────────────
+def make_bev_video_from_pngs(
+    frame_ids: list[str],
+    fps: float = 5.0,
+    out_path: Path | None = None,
+) -> str | None:
+    """Encode available BEV PNGs into an MP4 in frame timestamp order."""
+    import cv2
+
+    frame_paths = [OUT_DIR / f"bev_{fid}.png" for fid in frame_ids]
+    frame_paths = [path for path in frame_paths if path.exists()]
+    if not frame_paths:
+        print("[WARN] No BEV PNG frames available for video output.")
+        return None
+
+    first_frame = cv2.imread(str(frame_paths[0]))
+    if first_frame is None:
+        print(f"[WARN] Cannot read first BEV video frame: {frame_paths[0]}")
+        return None
+
+    if out_path is None:
+        out_path = OUT_DIR / "bev_video.mp4"
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+
+    height, width = first_frame.shape[:2]
+    writer = cv2.VideoWriter(
+        str(out_path), cv2.VideoWriter_fourcc(*"mp4v"), fps, (width, height)
+    )
+    if not writer.isOpened():
+        raise RuntimeError(f"Failed to open MP4 video writer: {out_path}")
+
+    written = 0
+    try:
+        for frame_path in frame_paths:
+            frame = cv2.imread(str(frame_path))
+            if frame is None:
+                print(f"  [WARN] Skipping unreadable video frame: {frame_path.name}")
+                continue
+            if frame.shape[:2] != (height, width):
+                frame = cv2.resize(frame, (width, height), interpolation=cv2.INTER_AREA)
+            writer.write(frame)
+            written += 1
+    finally:
+        writer.release()
+
+    if written == 0:
+        out_path.unlink(missing_ok=True)
+        return None
+    print(f"Saved video: {out_path} ({written} frames, {fps:g} FPS)")
+    return str(out_path)
+
+
+# ──────────────────────────────────────────────────────────────────────────────
 # Entry point
 # ──────────────────────────────────────────────────────────────────────────────
 def main():
@@ -564,6 +618,8 @@ def main():
         ncols = min(5, len(frames))
         make_bev_grid_from_pngs(frames, ncols=ncols,
                                 out_path=OUT_DIR / "bev_overview.png")
+        make_bev_video_from_pngs(frames, fps=5.0,
+                                 out_path=OUT_DIR / "bev_video.mp4")
 
 
 if __name__ == "__main__":
