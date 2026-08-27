@@ -1,0 +1,26 @@
+# Real-time testing stage controls and runtime settings.
+distance:
+  config: configs/evaluation.yaml
+  task: scene204_road
+
+stages:
+  segmentation: true
+  error_calculation: true
+  fpv_visualization: true
+  bev_visualization: true
+  comparison_video: true
+
+segmentation:
+  # Required only when stages.segmentation=false and a mask-dependent stage remains enabled.
+  # Relative paths are resolved from the repository root. Null uses the selected dataset's pred_mask_dir.
+  cached_mask_dir: null
+
+runtime:
+  fps: 5.0
+  device: cuda:0
+  max_frames: 0
+  warmup: 1
+  max_output_duration: 0.0
+
+output:
+  dir: real-time-testing/outputs/scene204_road
