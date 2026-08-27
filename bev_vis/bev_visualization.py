@@ -27,12 +27,19 @@ from PIL import Image
 # ──────────────────────────────────────────────────────────────────────────────
 # Paths
 # ──────────────────────────────────────────────────────────────────────────────
-CAM_CALIB_FILE = Path("../data/scene204/WildScenes2d/FRONT_CAMERA/camera_calibration.yaml")
-POSES_FILE     = Path("../data/scene204/WildScenes3d/poses3d.csv")
-LIDAR_DIR      = Path("../data/scene204/WildScenes3d/Clouds")
-LABEL_DIR      = Path("../data/scene204/WildScenes3d/Labels")
-FRAMES_DIR     = Path("../work_dirs/distance_output/frames")
-OUT_DIR        = Path("../work_dirs/distance_output/bev")
+PROJECT_ROOT   = Path(__file__).resolve().parent.parent
+CAM_CALIB_FILE = PROJECT_ROOT / "data/scene204/WildScenes2d/FRONT_CAMERA/camera_calibration.yaml"
+POSES_FILE     = PROJECT_ROOT / "data/scene204/WildScenes3d/poses3d.csv"
+LIDAR_DIR      = PROJECT_ROOT / "data/scene204/WildScenes3d/Clouds"
+LABEL_DIR      = PROJECT_ROOT / "data/scene204/WildScenes3d/Labels"
+FRAMES_DIR     = PROJECT_ROOT / "outputs/scene204_road/frames"
+OUT_DIR        = PROJECT_ROOT / "outputs/scene204_road/bev"
+
+
+def resolve_project_path(value: str | Path) -> Path:
+    """Resolve paths recorded by the pipeline relative to the repository root."""
+    path = Path(value)
+    return path if path.is_absolute() else PROJECT_ROOT / path
 
 # ─────────────────────────────────────────────────────────────────────────────
 # scene204 3D 25-class annotation (SurroundOcc style, uint8 labels)
@@ -304,8 +311,8 @@ def build_bev_frame(frame_id: str,
     # ── Load pipeline outputs ───────────────────────────────────────────────
     frame_dir = FRAMES_DIR / frame_id
     summary   = json.loads((frame_dir / "pipeline_summary.json").read_text())
-    h_json    = json.loads(Path(summary["h_source"]).read_text())
-    scan_path = summary["scanline_error"]["paths"]["samples_csv"]
+    h_json    = json.loads(resolve_project_path(summary["h_source"]).read_text())
+    scan_path = resolve_project_path(summary["scanline_error"]["paths"]["samples_csv"])
     scan_df   = pd.read_csv(scan_path)
 
     # ── LiDAR point cloud ───────────────────────────────────────────────────
@@ -339,7 +346,8 @@ def build_bev_frame(frame_id: str,
     v_max_train = np.inf
     h_unreliable = False
     corr_path = h_json.get("source_csv")
-    if corr_path and Path(corr_path).exists():
+    corr_path = resolve_project_path(corr_path) if corr_path else None
+    if corr_path and corr_path.exists():
         corr_df = pd.read_csv(corr_path)
         zf = summary["h_estimation"]["z_filter"]
         z_ok = ((corr_df["lidar_z"] >= zf["lidar_z_min"]) &
